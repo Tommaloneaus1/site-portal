@@ -60,7 +60,11 @@ table.ga{border-collapse:collapse;font-size:10px;}
 </div>
 
 <script>
-const GIST_ID = "21ff87027186fa5075661971b1cf74bd";
+// Reads ?gist=ID from the URL first — this is what lets ONE hosted copy of
+// this page serve every project. If you open the file directly (no query
+// string, e.g. double-clicking it), it falls back to the ID baked in at
+// download time so it still works standalone with no hosting at all.
+const GIST_ID = new URLSearchParams(location.search).get('gist') || "21ff87027186fa5075661971b1cf74bd";
 let DATA = null;
 let activeTradeFilter = null;
 
@@ -99,12 +103,22 @@ function pd(s){ return new Date(s+'T12:00:00'); }
 function renderTradeChips(){
   const wrap = document.getElementById('tradeChips');
   const trades = DATA.TRADES || [];
-  wrap.innerHTML = trades.map(t =>
+  const viewAllChip = '<span class="tradechip' + (activeTradeFilter===null?' active':'') + '" style="' +
+    (activeTradeFilter===null ? 'background:#1a1e24;border-color:#1a1e24;' : '') +
+    '" onclick="setTradeFilter(null)">View All</span>';
+  const tradeChips = trades.map(t =>
     '<span class="tradechip' + (activeTradeFilter===t.id?' active':'') + '" style="' +
     (activeTradeFilter===t.id ? 'background:'+t.dot+';border-color:'+t.dot+';' : '') +
     '" onclick=\'toggleTradeFilter(' + JSON.stringify(t.id) + ')\'>' +
     '<span style="display:inline-block;width:7px;height:7px;border-radius:2px;background:' + t.dot + ';margin-right:5px;"></span>' + t.label + '</span>'
   ).join('');
+  wrap.innerHTML = viewAllChip + tradeChips;
+}
+
+function setTradeFilter(id){
+  activeTradeFilter = id;
+  renderTradeChips();
+  renderTasks();
 }
 
 function toggleTradeFilter(id){
