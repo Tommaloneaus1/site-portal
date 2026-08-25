@@ -28,10 +28,41 @@ button.dl:hover{background:#f7f8f9;}
 .panel h2{font-size:11px;font-weight:700;color:#5a6270;text-transform:uppercase;letter-spacing:.5px;padding:12px 14px;border-bottom:1px solid #dde0e3;}
 .ganttScrollX{overflow-x:auto;}
 table.ga{border-collapse:collapse;font-size:10px;}
+.mobileList{display:none;}
+.mCard{border-bottom:1px solid #eef0f2;padding:11px 14px 11px 18px;position:relative;overflow:hidden;}
+.mCard:last-child{border-bottom:none;}
+.mGroupHdr{background:#fafbfb;padding:9px 14px;font-size:11px;font-weight:700;color:#1a1e24;border-bottom:1px solid #dde0e3;display:flex;align-items:center;gap:7px;}
+.mName{font-size:13px;font-weight:600;color:#1a1e24;margin-bottom:3px;}
+.mMeta{font-size:11px;color:#5a6270;display:flex;justify-content:space-between;align-items:center;gap:8px;}
+.mZone{color:#8a9099;}
+.mPctBar{background:#eef0f2;border-radius:3px;height:5px;margin-top:6px;overflow:hidden;}
+.mPctFill{height:100%;border-radius:3px;}
+.mPctNum{font-weight:700;flex-shrink:0;}
+.viewToggle{display:flex;border:1px solid #c8cdd3;border-radius:4px;overflow:hidden;}
+.viewToggle button{background:#fff;color:#5a6270;padding:6px 10px;font-size:11px;font-weight:600;border:none;}
+.viewToggle button.active{background:#1a1e24;color:#fff;}
+.viewToggle button:first-child{border-right:1px solid #c8cdd3;}
+body.mode-phone .ganttScrollX{display:none;}
+body.mode-phone .mobileList{display:block;}
+body.mode-desktop .ganttScrollX{display:block;}
+body.mode-desktop .mobileList{display:none;}
+@media (max-width:700px){
+  .wrap{padding:12px;}
+  .hdr{padding:12px;}
+  .hdr h1{font-size:14px;}
+  .badge{font-size:10px;gap:6px;}
+  button.refresh{padding:6px 10px;font-size:11px;}
+  button.dl{padding:6px 9px;font-size:11px;}
+}
+@media print{ .filterbar,.refresh,.dl,.badge,.viewToggle,.hdr{display:none !important;} body{background:#fff;} body.mode-phone .ganttScrollX{display:block !important;} body.mode-phone .mobileList{display:none !important;} #printLetterhead{display:block !important;} }
+#printLetterhead{border-bottom:2px solid #1a1e24;padding-bottom:12px;margin-bottom:16px;}
+#printLetterhead .plTitle{font-size:20px;font-weight:800;color:#1a1e24;}
+#printLetterhead .plSub{font-size:12px;color:#5a6270;margin-top:2px;}
+#printLetterhead .plMeta{display:flex;justify-content:space-between;margin-top:10px;font-size:10px;color:#5a6270;}
 .empty{padding:40px 20px;text-align:center;color:#8a9099;font-size:13px;}
 .err{padding:40px 20px;text-align:center;color:#b45309;font-size:13px;}
 .loading{padding:40px 20px;text-align:center;color:#5a6270;font-size:13px;}
-@media print{ .filterbar,.refresh,.dl,.badge{display:none !important;} .hdr{position:static;} body{background:#fff;} }
+.msDiamond{width:9px;height:9px;background:#F96302;transform:rotate(45deg);display:inline-block;flex-shrink:0;}
 </style>
 </head>
 <body>
@@ -43,8 +74,12 @@ table.ga{border-collapse:collapse;font-size:10px;}
   <span class="viewonly">VIEW ONLY</span>
   <div class="badge">
     <span id="lastUpdated">Loading…</span>
+    <div class="viewToggle">
+      <button id="btnDesktop" onclick="setViewMode('desktop')">🖥 Desktop</button>
+      <button id="btnPhone" onclick="setViewMode('phone')">📱 Phone</button>
+    </div>
     <button class="dl" onclick="downloadCSV()">⬇ CSV</button>
-    <button class="dl" onclick="window.print()">🖶 PDF</button>
+    <button class="dl" onclick="downloadLookaheadPDF()">🖶 PDF</button>
     <button class="refresh" id="refreshBtn" onclick="loadPortal()">↻ Refresh</button>
   </div>
 </div>
@@ -53,13 +88,32 @@ table.ga{border-collapse:collapse;font-size:10px;}
     <input type="text" id="searchInp" placeholder="Search tasks…" oninput="renderTasks()">
     <div id="tradeChips" style="display:flex;gap:6px;flex-wrap:wrap;"></div>
   </div>
+  <div id="printLetterhead" style="display:none;"></div>
   <div class="panel">
     <h2>Programme — Whole Project Lookahead</h2>
     <div class="ganttScrollX"><div id="taskTableWrap"><div class="loading">Loading programme…</div></div></div>
+    <div class="mobileList" id="mobileListWrap"></div>
   </div>
 </div>
 
 <script>
+// Default the view mode to whatever suits the actual screen, but the
+// person can always override with the toggle — it's remembered for next
+// time via localStorage so it doesn't reset on every refresh.
+function setViewMode(mode){
+  document.body.classList.remove('mode-desktop','mode-phone');
+  document.body.classList.add('mode-'+mode);
+  document.getElementById('btnDesktop').classList.toggle('active', mode==='desktop');
+  document.getElementById('btnPhone').classList.toggle('active', mode==='phone');
+  try{ localStorage.setItem('bridgePortalViewMode', mode); }catch(e){}
+}
+(function initViewMode(){
+  let mode;
+  try{ mode = localStorage.getItem('bridgePortalViewMode'); }catch(e){}
+  if(!mode) mode = window.innerWidth <= 700 ? 'phone' : 'desktop';
+  setViewMode(mode);
+})();
+
 // Reads ?gist=ID from the URL first — this is what lets ONE hosted copy of
 // this page serve every project. If you open the file directly (no query
 // string, e.g. double-clicking it), it falls back to the ID baked in at
@@ -128,7 +182,7 @@ function toggleTradeFilter(id){
 }
 
 function allTasksForRange(){
-  return (DATA.tasks || []).filter(t => !t.milestone && t.startDate && t.endDate);
+  return (DATA.tasks || []).filter(t => t.startDate && t.endDate);
 }
 
 function currentFilteredTasks(){
@@ -143,7 +197,8 @@ function renderTasks(){
   if(!DATA) return;
   const allTasks = allTasksForRange();
   const wrap = document.getElementById('taskTableWrap');
-  if(!allTasks.length){ wrap.innerHTML = '<div class="empty">No tasks in this programme</div>'; return; }
+  const mWrapEarly = document.getElementById('mobileListWrap');
+  if(!allTasks.length){ wrap.innerHTML = '<div class="empty">No tasks in this programme</div>'; if(mWrapEarly) mWrapEarly.innerHTML = '<div class="empty">No tasks in this programme</div>'; return; }
 
   // Whole-project day range — fixed regardless of filter, so the timeline
   // never shifts as you search or toggle trades, only which rows show.
@@ -158,7 +213,7 @@ function renderTasks(){
   for(let i=0;i<totalDays;i++){ const d=new Date(rangeStartD); d.setDate(d.getDate()+i); gCols.push(isoK(d)); }
 
   const filtered = currentFilteredTasks();
-  if(!filtered.length){ wrap.innerHTML = '<div class="empty">No tasks match</div>'; return; }
+  if(!filtered.length){ wrap.innerHTML = '<div class="empty">No tasks match</div>'; if(mWrapEarly) mWrapEarly.innerHTML = '<div class="empty">No tasks match</div>'; return; }
 
   const trades = (DATA.TRADES||[]).filter(tr => filtered.some(t => t.trade === tr.id));
 
@@ -180,6 +235,12 @@ function renderTasks(){
       const rowBg = ri%2===0 ? '#ffffff' : '#f7f8f9';
       let barCells = '';
       gCols.forEach(d => {
+        if(t.milestone){
+          if(d !== t.startDate){ barCells += '<td style="border:1px solid #dde0e3;background:' + rowBg + ';height:20px;"></td>'; return; }
+          barCells += '<td style="border:1px solid #dde0e3;background:' + rowBg + ';text-align:center;padding:2px 0;">' +
+            '<span class="msDiamond" title="Milestone: ' + escapeHtml(t.name) + '"></span></td>';
+          return;
+        }
         const inBar = d >= t.startDate && d <= t.endDate;
         if(!inBar){ barCells += '<td style="border:1px solid #dde0e3;background:' + rowBg + ';height:20px;"></td>'; return; }
         const isS = d===t.startDate, isE = d===t.endDate;
@@ -190,20 +251,74 @@ function renderTasks(){
           '<div style="position:absolute;left:0;top:0;bottom:0;width:' + pct + '%;background:rgba(255,255,255,.3);"></div></div></td>';
       });
       body += '<tr style="background:' + rowBg + ';">' +
-        '<td style="border:1px solid #dde0e3;padding:3px 8px;font-size:10px;color:#1a1e24;max-width:170px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="' + escapeHtml(t.name) + (t.zone?' ('+escapeHtml(t.zone)+')':'') + '">' + escapeHtml(t.name) + (t.zone?' <span style="color:#8a9099;">('+escapeHtml(t.zone)+')</span>':'') + '</td>' +
-        '<td style="border:1px solid #dde0e3;padding:3px 4px;font-size:9px;color:#5a6270;text-align:center;">' + (t.pct||0) + '%</td>' +
+        '<td style="border:1px solid #dde0e3;padding:3px 8px;font-size:10px;color:#1a1e24;max-width:170px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="' + escapeHtml(t.name) + (t.zone?' ('+escapeHtml(t.zone)+')':'') + '">' +
+        (t.milestone ? '<span class="msDiamond" style="margin-right:5px;vertical-align:middle;"></span>' : '') +
+        escapeHtml(t.name) + (t.zone?' <span style="color:#8a9099;">('+escapeHtml(t.zone)+')</span>':'') + '</td>' +
+        '<td style="border:1px solid #dde0e3;padding:3px 4px;font-size:9px;color:#5a6270;text-align:center;">' + (t.milestone ? '—' : (t.pct||0) + '%') + '</td>' +
         barCells + '</tr>';
     });
   });
 
+  // ── Mobile card list — same filtered/grouped data, stacked layout ──
+  let mobileHtml = '';
+  trades.forEach(tr => {
+    const tlist = filtered.filter(t => t.trade === tr.id).sort((a,b) => (a.startDate||'').localeCompare(b.startDate||''));
+    mobileHtml += '<div class="mGroupHdr"><span style="display:inline-block;width:9px;height:9px;border-radius:2px;background:' + tr.dot + ';"></span>' + tr.label + '</div>';
+    tlist.forEach(t => {
+      const pct = t.pct||0;
+      if(t.milestone){
+        mobileHtml += '<div class="mCard"><div style="position:absolute;left:0;top:0;bottom:0;width:4px;background:#F96302;"></div>' +
+          '<div class="mName"><span class="msDiamond" style="margin-right:6px;vertical-align:middle;"></span>' + escapeHtml(t.name) + '</div>' +
+          '<div class="mMeta"><span>Milestone — ' + t.startDate + '</span></div>' +
+          '</div>';
+        return;
+      }
+      mobileHtml += '<div class="mCard"><div style="position:absolute;left:0;top:0;bottom:0;width:4px;background:' + tr.dot + ';"></div>' +
+        '<div class="mName">' + escapeHtml(t.name) + (t.zone?' <span class="mZone">(' + escapeHtml(t.zone) + ')</span>':'') + '</div>' +
+        '<div class="mMeta"><span>' + t.startDate + ' → ' + t.endDate + '</span><span class="mPctNum" style="color:' + tr.dot + ';">' + pct + '%</span></div>' +
+        '<div class="mPctBar"><div class="mPctFill" style="width:' + pct + '%;background:' + tr.dot + ';"></div></div>' +
+        '</div>';
+    });
+  });
+
   wrap.innerHTML = '<table class="ga"><thead>' + head + '</thead><tbody>' + body + '</tbody></table>';
+  const mWrap = document.getElementById('mobileListWrap');
+  if(mWrap) mWrap.innerHTML = mobileHtml;
+}
+
+// Produces a like-for-like PDF of the Bridge lookahead export — same
+// letterhead conventions (project, date range, issued date, doc ref) —
+// deliberately WITHOUT the Subcontractor Commitment & Sign-Off section,
+// since there's no one to physically sign this on an external view-only
+// link. Forces the Gantt table layout regardless of the current
+// desktop/phone toggle, since that's the actual lookahead format.
+function downloadLookaheadPDF(){
+  if(!DATA) return;
+  const allTasks = allTasksForRange();
+  if(!allTasks.length){ return; }
+  const starts = allTasks.map(t => t.startDate).sort();
+  const ends = allTasks.map(t => t.endDate).sort();
+  const rangeStart = starts[0], rangeEnd = ends[ends.length-1];
+  const today = isoK(new Date());
+  const docRef = 'LA-' + today.replace(/-/g,'').slice(2) + '-V01';
+
+  const lh = document.getElementById('printLetterhead');
+  lh.innerHTML =
+    '<div class="plTitle">' + escapeHtml(DATA.name||'Project') + '</div>' +
+    '<div class="plSub">Programme Lookahead — Whole Project · ' + rangeStart + ' to ' + rangeEnd + '</div>' +
+    '<div class="plMeta"><span>Issued ' + today + ' · ' + docRef + '</span><span>Generated by Bridge · View-Only Portal</span></div>';
+
+  const realTitle = document.title;
+  document.title = (DATA.name||'Project') + '- ' + rangeStart + ' to ' + rangeEnd;
+  window.print();
+  document.title = realTitle;
 }
 
 function downloadCSV(){
   if(!DATA) return;
   const tasks = currentFilteredTasks().slice().sort((a,b) => (a.startDate||'').localeCompare(b.startDate||''));
-  const hdr = ['Task','Trade','Zone','Start','Finish','% Complete'];
-  const rows = tasks.map(t => [t.name, tradeById(t.trade).label, t.zone||'', t.startDate, t.endDate, t.pct||0]);
+  const hdr = ['Task','Trade','Zone','Start','Finish','% Complete','Milestone'];
+  const rows = tasks.map(t => [t.name, tradeById(t.trade).label, t.zone||'', t.startDate, t.endDate, t.milestone?'':(t.pct||0), t.milestone?'Yes':'']);
   const csv = [hdr, ...rows].map(r => r.map(v => '"' + String(v||'').replace(/"/g,'""') + '"').join(',')).join('\n');
   const blob = new Blob([csv], {type:'text/csv;charset=utf-8'});
   const url = URL.createObjectURL(blob);
