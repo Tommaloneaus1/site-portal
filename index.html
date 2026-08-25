@@ -20,6 +20,9 @@ button.refresh:disabled{opacity:.5;cursor:default;}
 button.dl{background:#ffffff;border:1px solid #c8cdd3;color:#1a1e24;padding:7px 12px;border-radius:4px;font-size:12px;font-weight:600;}
 button.dl:hover{background:#f7f8f9;}
 .wrap{padding:18px 20px;max-width:1500px;margin:0 auto;}
+.tabBar{display:flex;gap:4px;margin-bottom:14px;border-bottom:1px solid #dde0e3;}
+.tabBtn{background:transparent;color:#5a6270;padding:9px 16px;font-size:13px;font-weight:600;border:none;border-bottom:2px solid transparent;margin-bottom:-1px;}
+.tabBtn.active{color:#F96302;border-bottom-color:#F96302;}
 .filterbar{display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap;align-items:center;}
 .filterbar input[type=text]{flex:1;min-width:200px;background:#fff;border:1px solid #c8cdd3;border-radius:4px;padding:8px 12px;color:#1a1e24;font-size:13px;}
 .tradechip{padding:5px 11px;border-radius:12px;font-size:11px;font-weight:600;cursor:pointer;border:1px solid #c8cdd3;background:#fff;color:#5a6270;white-space:nowrap;}
@@ -28,6 +31,8 @@ button.dl:hover{background:#f7f8f9;}
 .panel h2{font-size:11px;font-weight:700;color:#5a6270;text-transform:uppercase;letter-spacing:.5px;padding:12px 14px;border-bottom:1px solid #dde0e3;}
 .ganttScrollX{overflow-x:auto;}
 table.ga{border-collapse:collapse;font-size:10px;}
+.stickyName{position:sticky;left:0;z-index:2;}
+.stickyPct{position:sticky;left:170px;z-index:2;}
 .mobileList{display:none;}
 .mCard{border-bottom:1px solid #eef0f2;padding:11px 14px 11px 18px;position:relative;overflow:hidden;}
 .mCard:last-child{border-bottom:none;}
@@ -38,6 +43,17 @@ table.ga{border-collapse:collapse;font-size:10px;}
 .mPctBar{background:#eef0f2;border-radius:3px;height:5px;margin-top:6px;overflow:hidden;}
 .mPctFill{height:100%;border-radius:3px;}
 .mPctNum{font-weight:700;flex-shrink:0;}
+.todayGrid{display:flex;flex-direction:column;}
+.heatWrap{border-top:1px solid #dde0e3;}
+.heatHdr{font-size:11px;font-weight:700;color:#5a6270;text-transform:uppercase;letter-spacing:.5px;padding:12px 14px;border-bottom:1px solid #dde0e3;background:#fafbfb;}
+#heatCanvasWrap{position:relative;background:#0d0f11;min-height:260px;display:flex;align-items:center;justify-content:center;overflow:hidden;}
+#heatCanvas{width:100%;height:auto;display:block;}
+@media (min-width:1000px){
+  .todayGrid{flex-direction:row;}
+  #todayWrap{flex:1.1;max-height:640px;overflow-y:auto;}
+  .heatWrap{flex:1;border-top:none;border-left:1px solid #dde0e3;}
+  #heatCanvasWrap{min-height:100%;height:640px;}
+}
 .viewToggle{display:flex;border:1px solid #c8cdd3;border-radius:4px;overflow:hidden;}
 .viewToggle button{background:#fff;color:#5a6270;padding:6px 10px;font-size:11px;font-weight:600;border:none;}
 .viewToggle button.active{background:#1a1e24;color:#fff;}
@@ -54,7 +70,7 @@ body.mode-desktop .mobileList{display:none;}
   button.refresh{padding:6px 10px;font-size:11px;}
   button.dl{padding:6px 9px;font-size:11px;}
 }
-@media print{ .filterbar,.refresh,.dl,.badge,.viewToggle,.hdr{display:none !important;} body{background:#fff;} body.mode-phone .ganttScrollX{display:block !important;} body.mode-phone .mobileList{display:none !important;} #printLetterhead{display:block !important;} }
+@media print{ .filterbar,.refresh,.dl,.badge,.viewToggle,.hdr,.tabBar{display:none !important;} body{background:#fff;} body.mode-phone .ganttScrollX{display:block !important;} body.mode-phone .mobileList{display:none !important;} #printLetterhead{display:block !important;} #panelProgramme{display:block !important;} #panelToday{display:none !important;} }
 #printLetterhead{border-bottom:2px solid #1a1e24;padding-bottom:12px;margin-bottom:16px;}
 #printLetterhead .plTitle{font-size:20px;font-weight:800;color:#1a1e24;}
 #printLetterhead .plSub{font-size:12px;color:#5a6270;margin-top:2px;}
@@ -84,15 +100,29 @@ body.mode-desktop .mobileList{display:none;}
   </div>
 </div>
 <div class="wrap">
+  <div class="tabBar">
+    <button id="tabProgramme" class="tabBtn active" onclick="setActiveTab('programme')">Programme</button>
+    <button id="tabToday" class="tabBtn" onclick="setActiveTab('today')">📅 Today</button>
+  </div>
   <div class="filterbar">
-    <input type="text" id="searchInp" placeholder="Search tasks…" oninput="renderTasks()">
+    <input type="text" id="searchInp" placeholder="Search tasks…" oninput="onFilterChange()">
     <div id="tradeChips" style="display:flex;gap:6px;flex-wrap:wrap;"></div>
   </div>
   <div id="printLetterhead" style="display:none;"></div>
-  <div class="panel">
+  <div class="panel" id="panelProgramme">
     <h2>Programme — Whole Project Lookahead</h2>
     <div class="ganttScrollX"><div id="taskTableWrap"><div class="loading">Loading programme…</div></div></div>
     <div class="mobileList" id="mobileListWrap"></div>
+  </div>
+  <div class="panel" id="panelToday" style="display:none;">
+    <h2 id="todayHdr">On Site Today</h2>
+    <div class="todayGrid">
+      <div id="todayWrap"><div class="loading">Loading…</div></div>
+      <div class="heatWrap">
+        <div class="heatHdr">Where Work Is Today</div>
+        <div id="heatCanvasWrap"><div class="loading">Loading…</div></div>
+      </div>
+    </div>
   </div>
 </div>
 
@@ -121,6 +151,7 @@ function setViewMode(mode){
 const GIST_ID = new URLSearchParams(location.search).get('gist') || "21ff87027186fa5075661971b1cf74bd";
 let DATA = null;
 let activeTradeFilter = null;
+let activeTab = 'programme';
 
 async function loadPortal(){
   const btn = document.getElementById('refreshBtn');
@@ -142,8 +173,10 @@ async function loadPortal(){
     document.getElementById('lastUpdated').innerHTML = 'Last updated: <b>' + ts.toLocaleString([], {dateStyle:'medium', timeStyle:'short'}) + '</b>';
     renderTradeChips();
     renderTasks();
+    renderToday();
   } catch(err) {
     document.getElementById('taskTableWrap').innerHTML = '<div class="err">⚠ ' + err.message + '</div>';
+    document.getElementById('todayWrap').innerHTML = '<div class="err">⚠ ' + err.message + '</div>';
     document.getElementById('lastUpdated').textContent = 'Failed to load';
   }
   btn.disabled = false; btn.textContent = '↻ Refresh';
@@ -172,13 +205,124 @@ function renderTradeChips(){
 function setTradeFilter(id){
   activeTradeFilter = id;
   renderTradeChips();
-  renderTasks();
+  onFilterChange();
 }
 
 function toggleTradeFilter(id){
   activeTradeFilter = activeTradeFilter === id ? null : id;
   renderTradeChips();
-  renderTasks();
+  onFilterChange();
+}
+
+// Search/trade filter apply to whichever tab is currently open.
+function onFilterChange(){
+  if(activeTab === 'today') renderToday();
+  else renderTasks();
+}
+
+function setActiveTab(tab){
+  activeTab = tab;
+  document.getElementById('tabProgramme').classList.toggle('active', tab==='programme');
+  document.getElementById('tabToday').classList.toggle('active', tab==='today');
+  document.getElementById('panelProgramme').style.display = tab==='programme' ? '' : 'none';
+  document.getElementById('panelToday').style.display = tab==='today' ? '' : 'none';
+  if(DATA) onFilterChange();
+}
+
+// Today view — a simple grouped card list (same shape on desktop or phone,
+// since there's no date range to lay out, just what's active right now).
+function renderToday(){
+  if(!DATA) return;
+  const today = isoK(new Date());
+  const hdr = document.getElementById('todayHdr');
+  if(hdr) hdr.textContent = 'On Site Today — ' + new Date().toLocaleDateString([], {weekday:'long', month:'short', day:'numeric'});
+
+  const search = (document.getElementById('searchInp').value || '').toLowerCase();
+  let onSite = (DATA.tasks || []).filter(t => t.startDate && t.endDate && t.startDate <= today && t.endDate >= today);
+  if(activeTradeFilter) onSite = onSite.filter(t => t.trade === activeTradeFilter);
+  if(search) onSite = onSite.filter(t => (t.name||'').toLowerCase().includes(search) || (t.zone||'').toLowerCase().includes(search));
+
+  const wrap = document.getElementById('todayWrap');
+  if(!onSite.length){
+    wrap.innerHTML = '<div class="empty">Nothing on site today' + (activeTradeFilter||search?' matching this filter':'') + '</div>';
+    renderTodayHeatmap([]);
+    return;
+  }
+
+  const trades = (DATA.TRADES||[]).filter(tr => onSite.some(t => t.trade === tr.id));
+  let html = '<div class="mobileList" style="display:block;">';
+  trades.forEach(tr => {
+    const tlist = onSite.filter(t => t.trade === tr.id).sort((a,b) => (a.name||'').localeCompare(b.name||''));
+    html += '<div class="mGroupHdr"><span style="display:inline-block;width:9px;height:9px;border-radius:2px;background:' + tr.dot + ';"></span>' + tr.label + ' <span style="margin-left:auto;color:#8a9099;font-weight:600;">' + tlist.length + '</span></div>';
+    tlist.forEach(t => {
+      if(t.milestone){
+        html += '<div class="mCard"><div style="position:absolute;left:0;top:0;bottom:0;width:4px;background:#F96302;"></div>' +
+          '<div class="mName"><span class="msDiamond" style="margin-right:6px;vertical-align:middle;"></span>' + escapeHtml(t.name) + '</div>' +
+          '<div class="mMeta"><span>Milestone today</span></div></div>';
+        return;
+      }
+      const pct = t.pct||0;
+      html += '<div class="mCard"><div style="position:absolute;left:0;top:0;bottom:0;width:4px;background:' + tr.dot + ';"></div>' +
+        '<div class="mName">' + escapeHtml(t.name) + (t.zone?' <span class="mZone">(' + escapeHtml(t.zone) + ')</span>':'') + '</div>' +
+        '<div class="mMeta"><span>' + t.startDate + ' → ' + t.endDate + '</span><span class="mPctNum" style="color:' + tr.dot + ';">' + pct + '%</span></div>' +
+        '<div class="mPctBar"><div class="mPctFill" style="width:' + pct + '%;background:' + tr.dot + ';"></div></div></div>';
+    });
+  });
+  html += '</div>';
+  wrap.innerHTML = html;
+  renderTodayHeatmap(onSite);
+}
+
+// Heat map — the GA drawing with today's active work zones highlighted by
+// trade colour, same idea as Bridge's own Daily Dashboard map view.
+let _heatCachedImg = null, _heatCachedSrc = null;
+function renderTodayHeatmap(onSiteTasks){
+  const heatWrap = document.getElementById('heatCanvasWrap');
+  if(!heatWrap) return;
+  const drawing = DATA.gaPDF || (DATA.gaPDFs && Object.values(DATA.gaPDFs)[0]);
+  if(!drawing){
+    heatWrap.innerHTML = '<div class="empty" style="color:#9aa2ad;">No GA drawing shared for this project</div>';
+    return;
+  }
+  if(!heatWrap.querySelector('canvas')) heatWrap.innerHTML = '<canvas id="heatCanvas"></canvas>';
+  const canvas = document.getElementById('heatCanvas');
+  const ctx = canvas.getContext('2d');
+
+  function draw(img){
+    canvas.width = img.width; canvas.height = img.height;
+    ctx.drawImage(img, 0, 0);
+    onSiteTasks.forEach(t => {
+      const tr = tradeById(t.trade);
+      (t.workZones || []).forEach(area => {
+        const pts = (area.points || []).map(([nx,ny]) => [nx*img.width, ny*img.height]);
+        if(pts.length < 2) return;
+        ctx.beginPath(); ctx.moveTo(pts[0][0], pts[0][1]);
+        pts.slice(1).forEach(p => ctx.lineTo(p[0], p[1]));
+        ctx.closePath();
+        ctx.fillStyle = tr.dot + '55'; ctx.fill();
+        ctx.strokeStyle = tr.dot; ctx.lineWidth = Math.max(1.5, img.width/400); ctx.stroke();
+        const cx = pts.reduce((s,p)=>s+p[0],0)/pts.length, cy = pts.reduce((s,p)=>s+p[1],0)/pts.length;
+        const fs = Math.max(11, img.width/90);
+        ctx.font = '700 ' + fs + 'px IBM Plex Sans, sans-serif';
+        ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+        const label = t.name.length > 20 ? t.name.slice(0,18)+'…' : t.name;
+        const tw = ctx.measureText(label).width, pad = 6, ph = fs+8;
+        ctx.fillStyle = tr.dot + 'e6';
+        if(ctx.roundRect){ ctx.beginPath(); ctx.roundRect(cx-tw/2-pad, cy-ph/2, tw+pad*2, ph, 4); ctx.fill(); }
+        else ctx.fillRect(cx-tw/2-pad, cy-ph/2, tw+pad*2, ph);
+        ctx.fillStyle = '#fff'; ctx.fillText(label, cx, cy);
+      });
+    });
+  }
+
+  if(_heatCachedSrc === drawing && _heatCachedImg){
+    draw(_heatCachedImg);
+  } else {
+    const img = new Image();
+    img.onload = () => { _heatCachedImg = img; _heatCachedSrc = drawing; draw(img); };
+    img.onerror = () => { heatWrap.innerHTML = '<div class="err">Drawing failed to load</div>'; };
+    img.src = drawing;
+  }
 }
 
 function allTasksForRange(){
@@ -217,7 +361,7 @@ function renderTasks(){
 
   const trades = (DATA.TRADES||[]).filter(tr => filtered.some(t => t.trade === tr.id));
 
-  let head = '<tr><td style="width:170px;border:1px solid #dde0e3;background:#f7f8f9;"></td><td style="width:40px;border:1px solid #dde0e3;background:#f7f8f9;"></td>';
+  let head = '<tr><td class="stickyName" style="width:170px;border:1px solid #dde0e3;background:#f7f8f9;"></td><td class="stickyPct" style="width:40px;border:1px solid #dde0e3;background:#f7f8f9;"></td>';
   gCols.forEach(d => {
     const D = pd(d), isT = d===today, dow = D.getDay(), isSat = dow===6;
     head += '<td style="text-align:center;border:1px solid #dde0e3;font-size:8px;padding:3px 2px;min-width:18px;color:' + (isT?'#F96302':isSat?'#b45309':'#5a6270') + ';background:' + (isT?'rgba(249,99,2,.06)':isSat?'rgba(180,83,9,.04)':'#fff') + ';font-weight:' + (isT?'700':'400') + ';">' + D.getDate() + '</td>';
@@ -227,7 +371,7 @@ function renderTasks(){
   let body = '';
   trades.forEach(tr => {
     const tlist = filtered.filter(t => t.trade === tr.id).sort((a,b) => (a.startDate||'').localeCompare(b.startDate||''));
-    body += '<tr><td colspan="2" style="background:#fff;border:1px solid #dde0e3;border-left:4px solid ' + tr.dot + ';padding:5px 8px;font-size:10px;font-weight:700;color:#1a1e24;">' +
+    body += '<tr><td class="stickyName" colspan="2" style="width:210px;background:#fff;border:1px solid #dde0e3;border-left:4px solid ' + tr.dot + ';padding:5px 8px;font-size:10px;font-weight:700;color:#1a1e24;">' +
       '<span style="display:inline-block;width:9px;height:9px;border-radius:2px;background:' + tr.dot + ';margin-right:5px;vertical-align:middle;"></span>' + tr.label + '</td>' +
       '<td colspan="' + gCols.length + '" style="background:#fff8f4;border:1px solid #dde0e3;"></td></tr>';
 
@@ -251,10 +395,10 @@ function renderTasks(){
           '<div style="position:absolute;left:0;top:0;bottom:0;width:' + pct + '%;background:rgba(255,255,255,.3);"></div></div></td>';
       });
       body += '<tr style="background:' + rowBg + ';">' +
-        '<td style="border:1px solid #dde0e3;padding:3px 8px;font-size:10px;color:#1a1e24;max-width:170px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="' + escapeHtml(t.name) + (t.zone?' ('+escapeHtml(t.zone)+')':'') + '">' +
+        '<td class="stickyName" style="width:170px;background:' + rowBg + ';border:1px solid #dde0e3;padding:3px 8px;font-size:10px;color:#1a1e24;max-width:170px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="' + escapeHtml(t.name) + (t.zone?' ('+escapeHtml(t.zone)+')':'') + '">' +
         (t.milestone ? '<span class="msDiamond" style="margin-right:5px;vertical-align:middle;"></span>' : '') +
         escapeHtml(t.name) + (t.zone?' <span style="color:#8a9099;">('+escapeHtml(t.zone)+')</span>':'') + '</td>' +
-        '<td style="border:1px solid #dde0e3;padding:3px 4px;font-size:9px;color:#5a6270;text-align:center;">' + (t.milestone ? '—' : (t.pct||0) + '%') + '</td>' +
+        '<td class="stickyPct" style="width:40px;background:' + rowBg + ';border:1px solid #dde0e3;padding:3px 4px;font-size:9px;color:#5a6270;text-align:center;">' + (t.milestone ? '—' : (t.pct||0) + '%') + '</td>' +
         barCells + '</tr>';
     });
   });
